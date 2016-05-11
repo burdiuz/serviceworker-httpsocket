@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ServiceWorker HTTPSocket Example</title>
+  <!--link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+        integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"
+          integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS"
+          crossorigin="anonymous"></script-->
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script type="text/javascript">
+
+    function ServiceHTTPSocket(options) {
+      /*TODO think how to handle options in case of passing blob URL
+       SOLUTION: before converting JS code into blob, create a variable _URL_OPTIONS and make it JSON stringify,
+       then prepend to original code. Worker code must lookup for this variable.
+       */
+      var url = '../httpservice-client.js';
+      if (options) {
+        //FIXME These options must be send oin initialize event
+      }
+      navigator.serviceWorker.register(url).then(
+          function() {
+            console.log('success', arguments);
+            setTimeout(start, 1000);
+          },
+          function() {
+            console.log('failure', arguments);
+          }
+      );
+    }
+
+    function start() {
+
+      $.ajax({
+        url:'/method/get',
+        method: 'GET'
+      });
+
+      $.ajax({
+        url:'/method/post',
+        method: 'POST',
+        data: { name: 'John', location: 'Boston' }
+      });
+
+      $.ajax({
+        url:'/method/put',
+        method: 'PUT',
+        data: 'egawrgarw gargwr gwrg egergergr warg awrg argarwga'
+      });
+    }
+
+    var socket = new ServiceHTTPSocket({});
+    //setTimeout(start, 1000);
+
+  </script>
+</head>
+<body>
+<img src="image.png">
+<form action="send/multipart/file" method="post" enctype="multipart/form-data">
+  <input type="file"><input type="submit">
+</form>
+<form action="send/urlencoded/file" method="post" enctype="application/x-www-form-urlencoded">
+  <input type="file"><input type="submit">
+</form>
+</body>
+</html>

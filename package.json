@@ -1,0 +1,36 @@
+{
+  "name": "websocket-server",
+  "description": "Simple WebSocket Server implementation with traditional API",
+  "version": "0.0.1",
+  "main": "index.js",
+  "keywords": [
+    "http",
+    "connection",
+    "socket",
+    "persistent",
+	"event",
+	"data",
+	"transfer"
+  ],
+  "homepage": "https://github.com/burdiuz/js-websocket-server",
+  "bugs": {
+    "url": "https://github.com/burdiuz/js-websocket-server/issues",
+    "email": "burdiuz@gmail.com"
+  },
+  "license": "MIT",
+  "author": "Oleg Galaburda <burdiuz@gmail.com> (http://actualwave.com/)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/burdiuz/js-websocket-server.git"
+  },
+  "dependencies": {
+    "event-dispatcher": "git://github.com/burdiuz/js-event-dispatcher.git",
+    "worker-event-dispatcher": "git://github.com/burdiuz/js-worker-event-dispatcher.git",
+	"websocket-server": "git://github.com/burdiuz/js-websocket-server.git"
+  },
+  "devDependencies": {
+    "express": "^4.13.3"
+  },
+  "scripts": {
+  }
+}
