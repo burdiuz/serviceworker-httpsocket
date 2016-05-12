@@ -3,6 +3,12 @@
  */
 
 var EOL = '\r\n';
+var ID_HEADER_NAME = 'x-rid';
+var restrictedHeaders = {
+  'Connection': true,
+  'connection': true,
+  'x-rid': true
+};
 var socket;
 //TODO when socket is ready, allow overriding
 var socketReady = false;
@@ -81,9 +87,18 @@ self.addEventListener('install', function(event) {
     //TODO should actually start timeout and try again
     console.log('close', arguments);
   };
+
   socket.onmessage = function(event) {
     //TODO parse headers, look for request by id, resolve request
     console.log('message received: ', event);
+    var data = splitHTTPResponse(event.data);
+    parseHeaders(data.headers, data);
+    var response = new Response(data.body, data);
+    var id = getIdentifierHeader(data.headers);
+    if (id && refs[id] instanceof Deferred) {
+      refs[id].resolve(response);
+      delete refs[id];
+    }
   };
   event.waitUntil(deferred.promise);
 });
@@ -95,21 +110,21 @@ self.addEventListener('message', function() {
   console.log('message', arguments);
 });
 self.addEventListener('fetch', function(event) {
-  console.log('fetch', arguments, event.request.url);
+  console.log('fetch', socketReady, event, event.request.url);
   //TODO check if request matches config -- request method and URL regexp
   var deferred = new Deferred();
   event.request.blob().then(function(body) {
-    var id = createIdentifierHeader(event.request);
-    var blob = requestToBlob(event.request, body);
+    var id = createIdentifier();
+    var blob = requestToBlob(event.request, body, id);
     /*
-    console.log('Request blob:', blob);
-    var reader = new FileReader();
-    reader.onloadend = function(event) {
-      console.log('Request:', event);
-      console.log(event.target.result);
-    };
-    reader.readAsText(blob);
-    */
+     console.log('Request blob:', blob);
+     var reader = new FileReader();
+     reader.onloadend = function(event) {
+     console.log('Request:', event);
+     console.log(event.target.result);
+     };
+     reader.readAsText(blob);
+     */
     if (socketReady) {
       refs[id] = deferred;
       socket.send(blob);
@@ -136,23 +151,27 @@ console.log('run', self);
  * @param {Blob|ArrayBuffer|String|DOMString} body
  * @returns {Blob} request prepared to send as Blob data
  */
-function requestToBlob(request, body) {
-  specifyContentLength(request, body);
-  var blob = new Blob([buildHeaders(request), body]);
+function requestToBlob(request, body, id) {
+  var blob = new Blob([buildHeaders(request, body, id), body]);
   return blob;
 }
 
-function specifyContentLength(request, body) {
-  request.headers['Content-Length'] = body.size;
+function specifyContentLength(request, headersList, body) {
+  if (!request.headers.has('Content-Length')) {
+    headersList.push('Content-Length: ' + body.size);
+  }
 }
 /**
  *
  * @param {Request} request
  * @returns {string} Headers block for HTTP request
  */
-function buildHeaders(request) {
-  var list = createHeadersList(forceConnectionCloseHeader(request.headers));
+function buildHeaders(request, body, id) {
+  var list = createHeadersList(request.headers);
   createRequestHeader(request, list);
+  specifyContentLength(request, list, body);
+  setIdentifierHeader(id, list);
+  forceConnectionCloseHeader(list);
   return list.join(EOL) + EOL + EOL;
 }
 
@@ -163,12 +182,11 @@ function buildHeaders(request) {
  */
 function createHeadersList(headers) {
   var list = [];
-  for (var name in headers) {
-    var value = headers[name];
-    var type = typeof(value);
-    if (headers.hasOwnProperty(name) && (type === 'string' || type === 'number')) {
-      list.push(name + ': ' + headers[name]);
-    }
+  var iterator = headers.entries();
+  var item = null;
+  while (!(item = iterator.next()).done) {
+    if (restrictedHeaders[item.value[0]]) continue;
+    list.push(item.value.join(': '));
   }
   return list;
 }
@@ -180,8 +198,6 @@ function createHeadersList(headers) {
  * @returns {string} Generated request header
  */
 function createRequestHeader(request, headerList, httpVersion) {
-  // HTTP/1.0 does not support persistent connections andI may haveproblems with this on nodejs side, since its hardcoded to support http 1.1 only.
-  // So we force sending Connection: close to overwrite any other options.
   var header = request.method + ' ' + request.url + ' ' + 'HTTP/' + (httpVersion || '1.1');
   if (headerList) {
     headerList.unshift(header);
@@ -191,19 +207,69 @@ function createRequestHeader(request, headerList, httpVersion) {
 
 /**
  *
- * @param {Headers} headers
- * @returns {Headers} original headers object with updated Connection header
+ * @param {string[]} headersList
  */
-function forceConnectionCloseHeader(headers) {
-  delete headers.connection;
-  delete headers.Connection;
-  headers.Connection = 'close';
-  return headers;
+function forceConnectionCloseHeader(headersList) {
+  headersList.push('Connection: close');
 }
 
-var __i = 0;
-function createIdentifierHeader(request) {
-  var id = 'r-id-' + ++__i;
-  request.headers['x-rid'] = id;
-  return id;
+var createIdentifier = (function() {
+  var __i = 0;
+
+  function createIdentifier() {
+    var id = 'r-id-' + ++__i;
+    return id;
+  }
+
+  return createIdentifier;
+})();
+
+function setIdentifierHeader(id, headersList) {
+  headersList.push(ID_HEADER_NAME + ': ' + id);
+}
+
+function getIdentifierHeader(headers) {
+  var value = null;
+  if (headers instanceof Headers) {
+    value = headers.get(ID_HEADER_NAME);
+    headers.delete(ID_HEADER_NAME);
+  } else {
+    value = headers[ID_HEADER_NAME];
+  }
+  return value;
+}
+
+function splitHTTPResponse(blob) {
+  var reader = new FileReaderSync();
+  var text = reader.readAsText(blob, 'ascii');
+  var index = text.indexOf(EOL + EOL);
+  return index > 0 ? {
+    headers: text.substr(0, index),
+    body: blob.slice(index + 4)
+  } : {};
+}
+
+function parseHeaders(headers, response) {
+  var result = new Headers();
+  if (headers) {
+    var list = headers.split(EOL);
+    parseStatus(list.shift(), response);
+    var length = list.length;
+    for (var index = 0; index < length; index++) {
+      var value = list[index].match(/^([^:]+):\s*(.*)$/);
+      if (value) {
+        result.append(value[1], value[2]);
+        result[value[1]] = value[2]; // just for visibility
+      }
+    }
+  }
+  response.headers = result;
+}
+
+function parseStatus(header, response) {
+  var data = header.match(/^[^\s]+\s+(\d+)\s+(.*)$/);
+  if (data) {
+    response.status = data[1];
+    response.statusText = data[2];
+  }
 }
