@@ -5,7 +5,6 @@
 var EOL = '\r\n';
 var ID_HEADER_NAME = 'x-rid';
 var restrictedHeaders = {
-  'Connection': true,
   'connection': true,
   'x-rid': true
 };
@@ -185,7 +184,7 @@ function createHeadersList(headers) {
   var iterator = headers.entries();
   var item = null;
   while (!(item = iterator.next()).done) {
-    if (restrictedHeaders[item.value[0]]) continue;
+    if (restrictedHeaders[item.value[0].toLowerCase()]) continue;
     list.push(item.value.join(': '));
   }
   return list;
