@@ -12,7 +12,9 @@ var socket;
 //TODO when socket is ready, allow overriding
 var socketReady = false;
 
-var Options = null; // TODO populated on initialize object, but might be redundant since many pageswill talk to single serwice worker instance
+// TODO populated on initialize object, but might be redundant
+// since many pages will talk to single service worker instance
+var Options = null;
 
 
 /**

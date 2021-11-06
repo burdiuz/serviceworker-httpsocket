@@ -8,9 +8,9 @@
     "connection",
     "socket",
     "persistent",
-	"event",
-	"data",
-	"transfer"
+    "event",
+    "data",
+    "transfer"
   ],
   "homepage": "https://github.com/burdiuz/js-websocket-server",
   "bugs": {
@@ -26,11 +26,12 @@
   "dependencies": {
     "event-dispatcher": "git://github.com/burdiuz/js-event-dispatcher.git",
     "worker-event-dispatcher": "git://github.com/burdiuz/js-worker-event-dispatcher.git",
-	"websocket-server": "git://github.com/burdiuz/js-websocket-server.git"
+    "websocket-server": "git://github.com/burdiuz/js-websocket-server.git"
   },
   "devDependencies": {
     "express": "^4.13.3"
   },
   "scripts": {
+    "start":"node server.js"
   }
 }
